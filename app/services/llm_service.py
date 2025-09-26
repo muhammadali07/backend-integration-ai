@@ -32,54 +32,54 @@ class LLMService:
         if GEMINI_AVAILABLE and settings.GEMINI_API_KEY:
             genai.configure(api_key=settings.GEMINI_API_KEY)
     
-    async def evaluate_cv(self, cv_text: str, job_requirements: str, context: str = "") -> CVEvaluation:
+    async def evaluate_cv(self, cv_text: str, job_description: str, provider: LLMProvider = LLMProvider.MOCK) -> CVEvaluation:
         """Evaluate CV with fallback to mock data on failure"""
         try:
-            prompt = self._create_cv_prompt(cv_text, job_requirements, context)
+            prompt = self._create_cv_evaluation_prompt(cv_text, job_description)
             
-            if self.provider == LLMProvider.OPENAI:
+            if provider == LLMProvider.OPENAI and OPENAI_AVAILABLE and settings.OPENAI_API_KEY:
                 response = await self._call_openai(prompt)
-            elif self.provider == LLMProvider.GEMINI:
+            elif provider == LLMProvider.GEMINI and GEMINI_AVAILABLE and settings.GEMINI_API_KEY:
                 response = await self._call_gemini(prompt)
-            else:  # MOCK
-                return self._get_mock_cv_evaluation()
+            else:  # MOCK or fallback
+                return CVEvaluation(**self._mock_cv_evaluation())
             
             parsed_response = self._parse_json_response(response, "cv")
             return CVEvaluation(**parsed_response)
             
         except (LLMServiceError, Exception) as e:
             logging.warning(f"LLM evaluation failed, using mock data: {str(e)}")
-            return self._get_mock_cv_evaluation()
+            return CVEvaluation(**self._mock_cv_evaluation())
 
-    async def evaluate_project(self, project_text: str, job_requirements: str, context: str = "") -> ProjectEvaluation:
+    async def evaluate_project(self, project_text: str, study_case_brief: str, provider: LLMProvider = LLMProvider.MOCK) -> ProjectEvaluation:
         """Evaluate project with fallback to mock data on failure"""
         try:
-            prompt = self._create_project_prompt(project_text, job_requirements, context)
+            prompt = self._create_project_evaluation_prompt(project_text, study_case_brief)
             
-            if self.provider == LLMProvider.OPENAI:
+            if provider == LLMProvider.OPENAI and OPENAI_AVAILABLE and settings.OPENAI_API_KEY:
                 response = await self._call_openai(prompt)
-            elif self.provider == LLMProvider.GEMINI:
+            elif provider == LLMProvider.GEMINI and GEMINI_AVAILABLE and settings.GEMINI_API_KEY:
                 response = await self._call_gemini(prompt)
-            else:  # MOCK
-                return self._get_mock_project_evaluation()
+            else:  # MOCK or fallback
+                return ProjectEvaluation(**self._mock_project_evaluation())
             
             parsed_response = self._parse_json_response(response, "project")
             return ProjectEvaluation(**parsed_response)
             
         except (LLMServiceError, Exception) as e:
             logging.warning(f"LLM evaluation failed, using mock data: {str(e)}")
-            return self._get_mock_project_evaluation()
+            return ProjectEvaluation(**self._mock_project_evaluation())
 
-    async def generate_summary(self, cv_eval: CVEvaluation, project_eval: ProjectEvaluation, job_requirements: str) -> str:
+    async def generate_overall_summary(self, cv_result: Dict[str, Any], project_result: Dict[str, Any], provider: LLMProvider = LLMProvider.MOCK) -> str:
         """Generate overall summary with fallback"""
         try:
-            prompt = self._create_summary_prompt(cv_eval, project_eval, job_requirements)
+            prompt = self._create_summary_prompt(cv_result, project_result)
             
-            if self.provider == LLMProvider.OPENAI:
+            if provider == LLMProvider.OPENAI and OPENAI_AVAILABLE and settings.OPENAI_API_KEY:
                 response = await self._call_openai(prompt)
-            elif self.provider == LLMProvider.GEMINI:
+            elif provider == LLMProvider.GEMINI and GEMINI_AVAILABLE and settings.GEMINI_API_KEY:
                 response = await self._call_gemini(prompt)
-            else:  # MOCK
+            else:  # MOCK or fallback
                 return self._get_mock_summary()
             
             return response.strip()
@@ -239,9 +239,11 @@ class LLMService:
             "resilience": 3.5,
             "documentation": 4.0,
             "creativity_bonus": 3.2,
-            "project_score": 3.7,
-            "project_feedback": "Meets prompt chaining requirements, lacks error handling robustness."
-        }
+            }
+    
+    def _get_mock_summary(self) -> str:
+        """Mock summary for testing"""
+        return "Strong backend developer with good technical skills and project execution. Shows potential for AI integration work with room for improvement in error handling and documentation."
 
 # Global instance
 llm_service = LLMService()

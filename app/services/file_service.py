@@ -6,6 +6,7 @@ import logging
 from fastapi import UploadFile, HTTPException
 import PyPDF2
 import docx
+import aiofiles
 from app.core.config import settings
 from app.core.exceptions import FileProcessingError
 from app.core.retry import retry_sync, FILE_PROCESSING_RETRY_CONFIG
